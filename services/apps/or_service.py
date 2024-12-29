@@ -1,0 +1,2 @@
+class OpenReviewScanner:
+    pass

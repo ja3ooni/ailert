@@ -1,0 +1,15 @@
+substack-api==0.1.0
+kaggle==1.6.17
+pydantic==2.10.2
+requests==2.32.3
+simplejson==3.19.3
+boto3==1.35.86
+botocore==1.35.86
+schedule==1.2.2
+PyJWT==2.10.1
+cryptography==44.0.0
+beautifulsoup4==4.12.3
+numpy==2.2.1
+scikit-learn==1.6.0
+feedparser==6.0.11
+pytz==2024.2

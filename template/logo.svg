@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+  <!-- Background circle -->
+  <circle cx="100" cy="50" r="40" fill="#6366f1" opacity="0.1"/>
+
+  <!-- Stylized 'A' -->
+  <path d="M70 80 L100 20 L130 80 Z" fill="none" stroke="#6366f1" stroke-width="8"/>
+
+  <!-- Dot for 'i' -->
+  <circle cx="140" cy="30" r="6" fill="#8b5cf6"/>
+
+  <!-- Lightning bolt -->
+  <path d="M140 45 L130 60 L140 60 L130 75" fill="none" stroke="#8b5cf6" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
