@@ -1,15 +1,10 @@
-import schedule
-import time
+from flask import Flask
+from router.routes import bp
 
-from scheduler import *
+app = Flask(__name__)
+
+app.register_blueprint(bp)
+
 
 if __name__ == "__main__":
-
-    schedule.every().day.at("00:00").do(daily_task)
-    schedule.every().monday.at("00:00").do(weekly_task)
-
-    print("Scheduler is running. Waiting for the daily task...")
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    app.run(host="0.0.0.0", port=8000, reload=True)

@@ -59,6 +59,9 @@ class GitHubScanner:
         except Exception as e:
             print(f"Error: {str(e)}")
 
+    def get_trending_repos(self):
+        pass
+
     def daily_trending_repos(self):
         repositories = self.__extract_from_html(self.site_url)
         return repositories

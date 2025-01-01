@@ -1,223 +1,201 @@
-from decimal import Decimal
-import logging
-from boto3.dynamodb.conditions import Key
+import uuid
+import boto3
+from datetime import datetime
 from botocore.exceptions import ClientError
+from typing import Dict, List, Optional, Any
 
-logger = logging.getLogger(__name__)
 
 class Dynamo:
-    def __init__(self, dyn_resource):
-        self.dyn_resource = dyn_resource
-        self.table = None
+    def __init__(self, region_name: str):
+        self.dynamodb = boto3.resource('dynamodb', region_name=region_name)
+        self.client = boto3.client('dynamodb', region_name=region_name)
 
-    def exists(self, table_name):
+    def create_table(self,
+                     table_name: str,
+                     key_schema: List[Dict[str, str]],
+                     attribute_definitions: List[Dict[str, str]],
+                     provisioned_throughput: Optional[Dict[str, int]] = None) -> bool:
         try:
-            table = self.dyn_resource.Table(table_name)
-            table.load()
-            exists = True
-        except ClientError as err:
-            if err.response["Error"]["Code"] == "ResourceNotFoundException":
-                exists = False
-            else:
-                logger.error(
-                    "Couldn't check for existence of %s. Here's why: %s: %s",
-                    table_name,
-                    err.response["Error"]["Code"],
-                    err.response["Error"]["Message"],
-                )
-                raise
-        else:
-            self.table = table
-        return exists
-
-    def create_table(self, table_name):
-        try:
-            self.table = self.dyn_resource.create_table(
-                TableName=table_name,
-                KeySchema=[
-                    {"AttributeName": "year", "KeyType": "HASH"},  # Partition key
-                    {"AttributeName": "title", "KeyType": "RANGE"},  # Sort key
-                ],
-                AttributeDefinitions=[
-                    {"AttributeName": "year", "AttributeType": "N"},
-                    {"AttributeName": "title", "AttributeType": "S"},
-                ],
-                ProvisionedThroughput={
-                    "ReadCapacityUnits": 10,
-                    "WriteCapacityUnits": 10,
-                },
-            )
-            self.table.wait_until_exists()
-        except ClientError as err:
-            logger.error(
-                "Couldn't create table %s. Here's why: %s: %s",
-                table_name,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-        else:
-            return self.table
-
-    def list_tables(self):
-        try:
-            tables = []
-            for table in self.dyn_resource.tables.all():
-                print(table.name)
-                tables.append(table)
-        except ClientError as err:
-            logger.error(
-                "Couldn't list tables. Here's why: %s: %s",
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-        else:
-            return tables
-
-
-    def write_batch(self, movies):
-        try:
-            with self.table.batch_writer() as writer:
-                for movie in movies:
-                    writer.put_item(Item=movie)
-        except ClientError as err:
-            logger.error(
-                "Couldn't load data into table %s. Here's why: %s: %s",
-                self.table.name,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-
-
-    def add_movie(self, title, year, plot, rating):
-        try:
-            self.table.put_item(
-                Item={
-                    "year": year,
-                    "title": title,
-                    "info": {"plot": plot, "rating": Decimal(str(rating))},
+            if not provisioned_throughput:
+                provisioned_throughput = {
+                    'ReadCapacityUnits': 5,
+                    'WriteCapacityUnits': 5
                 }
-            )
-        except ClientError as err:
-            logger.error(
-                "Couldn't add movie %s to table %s. Here's why: %s: %s",
-                title,
-                self.table.name,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
 
+            table = self.dynamodb.create_table(
+                TableName=table_name,
+                KeySchema=key_schema,
+                AttributeDefinitions=attribute_definitions,
+                ProvisionedThroughput=provisioned_throughput
+            )
+            table.wait_until_exists()
+            return True
+        except ClientError as e:
+            print(f"Error creating table: {e}")
+            return False
 
-    def get_movie(self, title, year):
+    def list_tables(self) -> List[str]:
         try:
-            response = self.table.get_item(Key={"year": year, "title": title})
-        except ClientError as err:
-            logger.error(
-                "Couldn't get movie %s from table %s. Here's why: %s: %s",
-                title,
-                self.table.name,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-        else:
-            return response["Item"]
+            return self.client.list_tables()['TableNames']
+        except ClientError as e:
+            print(f"Error listing tables: {e}")
+            return []
 
-
-    def update_movie(self, title, year, rating, plot):
+    def describe_table(self, table_name: str) -> Dict:
         try:
-            response = self.table.update_item(
-                Key={"year": year, "title": title},
-                UpdateExpression="set info.rating=:r, info.plot=:p",
-                ExpressionAttributeValues={":r": Decimal(str(rating)), ":p": plot},
-                ReturnValues="UPDATED_NEW",
-            )
-        except ClientError as err:
-            logger.error(
-                "Couldn't update movie %s in table %s. Here's why: %s: %s",
-                title,
-                self.table.name,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-        else:
-            return response["Attributes"]
+            return self.client.describe_table(TableName=table_name)
+        except ClientError as e:
+            print(f"Error describing table: {e}")
+            return {}
 
-
-    def query_movies(self, year):
+    def table_exists(self, table_name: str) -> bool:
         try:
-            response = self.table.query(KeyConditionExpression=Key("year").eq(year))
-        except ClientError as err:
-            logger.error(
-                "Couldn't query for movies released in %s. Here's why: %s: %s",
-                year,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
-        else:
-            return response["Items"]
+            self.client.describe_table(TableName=table_name)
+            return True
+        except ClientError:
+            return False
 
-
-    def scan_movies(self, year_range):
-        movies = []
-        scan_kwargs = {
-            "FilterExpression": Key("year").between(
-                year_range["first"], year_range["second"]
-            ),
-            "ProjectionExpression": "#yr, title, info.rating",
-            "ExpressionAttributeNames": {"#yr": "year"},
-        }
+    def delete_table(self, table_name: str) -> bool:
         try:
-            done = False
-            start_key = None
-            while not done:
-                if start_key:
-                    scan_kwargs["ExclusiveStartKey"] = start_key
-                response = self.table.scan(**scan_kwargs)
-                movies.extend(response.get("Items", []))
-                start_key = response.get("LastEvaluatedKey", None)
-                done = start_key is None
-        except ClientError as err:
-            logger.error(
-                "Couldn't scan for movies. Here's why: %s: %s",
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
+            table = self.dynamodb.Table(table_name)
+            table.delete()
+            table.wait_until_not_exists()
+            return True
+        except ClientError as e:
+            print(f"Error deleting table: {e}")
+            return False
 
-        return movies
-
-
-    def delete_movie(self, title, year):
+    def add_item(self, table_name: str, item: Dict[str, Any], auto_id: bool = True) -> str:
         try:
-            self.table.delete_item(Key={"year": year, "title": title})
-        except ClientError as err:
-            logger.error(
-                "Couldn't delete movie %s. Here's why: %s: %s",
-                title,
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
-            )
-            raise
+            table = self.dynamodb.Table(table_name)
+            if auto_id and 'id' not in item:
+                item['id'] = str(uuid.uuid4())
 
+            item['created_at'] = datetime.now().isoformat()
+            item['updated_at'] = item['created_at']
+            table.put_item(Item=item)
+            return item.get('id', '')
+        except ClientError as e:
+            print(f"Error adding item: {e}")
+            return ""
 
-    def delete_table(self):
+    def get_item(self, table_name: str, key: Dict[str, Any]) -> Dict:
         try:
-            self.table.delete()
-            self.table = None
-        except ClientError as err:
-            logger.error(
-                "Couldn't delete table. Here's why: %s: %s",
-                err.response["Error"]["Code"],
-                err.response["Error"]["Message"],
+            table = self.dynamodb.Table(table_name)
+            response = table.get_item(Key=key)
+            return response.get('Item', {})
+        except ClientError as e:
+            print(f"Error getting item: {e}")
+            return {}
+
+    def update_item(self, table_name: str, key: Dict[str, Any], update_attrs: Dict[str, Any]) -> bool:
+        try:
+            table = self.dynamodb.Table(table_name)
+
+            update_expr_parts = []
+            expr_attr_values = {}
+            expr_attr_names = {}
+
+            for attr_name, value in update_attrs.items():
+                attr_parts = attr_name.split('.')
+                update_name = '#' + '_'.join(attr_parts)
+                expr_attr_names[update_name] = attr_parts[-1]
+
+                value_key = ':' + '_'.join(attr_parts)
+                update_expr_parts.append(f"{update_name} = {value_key}")
+                expr_attr_values[value_key] = value
+
+            update_expr_parts.append('#updated_at = :updated_at')
+            expr_attr_names['#updated_at'] = 'updated_at'
+            expr_attr_values[':updated_at'] = datetime.now().isoformat()
+
+            update_expression = 'SET ' + ', '.join(update_expr_parts)
+
+            table.update_item(
+                Key=key,
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expr_attr_values,
+                ExpressionAttributeNames=expr_attr_names
             )
-            raise
+            return True
+        except ClientError as e:
+            print(f"Error updating item: {e}")
+            return False
 
+    def delete_item(self, table_name: str, key: Dict[str, Any]) -> bool:
+        try:
+            table = self.dynamodb.Table(table_name)
+            table.delete_item(Key=key)
+            return True
+        except ClientError as e:
+            print(f"Error deleting item: {e}")
+            return False
 
+    def query_items(self,
+                    table_name: str,
+                    key_condition_expression: str,
+                    expression_values: Dict[str, Any],
+                    index_name: Optional[str] = None,
+                    filter_expression: Optional[str] = None,
+                    limit: Optional[int] = None) -> List[Dict]:
+        """
+        Query items from the table
 
+        Args:
+            table_name: Name of the table
+            key_condition_expression: KeyConditionExpression for the query
+            expression_values: Dictionary of expression values
+            index_name: Optional secondary index name
+            filter_expression: Optional filter expression
+            limit: Optional limit for results
+        """
+        try:
+            table = self.dynamodb.Table(table_name)
+            params = {
+                'KeyConditionExpression': key_condition_expression,
+                'ExpressionAttributeValues': expression_values
+            }
 
+            if index_name:
+                params['IndexName'] = index_name
+            if filter_expression:
+                params['FilterExpression'] = filter_expression
+            if limit:
+                params['Limit'] = limit
+
+            response = table.query(**params)
+            return response.get('Items', [])
+        except ClientError as e:
+            print(f"Error querying items: {e}")
+            return []
+
+    def scan_items(self,
+                   table_name: str,
+                   filter_expression: Optional[str] = None,
+                   expression_values: Optional[Dict[str, Any]] = None,
+                   limit: Optional[int] = None) -> List[Dict]:
+        """
+        Scan items from the table
+
+        Args:
+            table_name: Name of the table
+            filter_expression: Optional filter expression
+            expression_values: Optional dictionary of expression values
+            limit: Optional limit for results
+        """
+        try:
+            table = self.dynamodb.Table(table_name)
+            params = {}
+
+            if filter_expression:
+                params['FilterExpression'] = filter_expression
+            if expression_values:
+                params['ExpressionAttributeValues'] = expression_values
+            if limit:
+                params['Limit'] = limit
+
+            response = table.scan(**params)
+            return response.get('Items', [])
+        except ClientError as e:
+            print(f"Error scanning items: {e}")
+            return []

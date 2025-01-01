@@ -1,31 +1,36 @@
-from dbhandler.db import *
+import hashlib
+from typing import Any, Dict, List
 
-FEATURES_FILE = os.path.join(DATA_DIR, 'features.p')
 
-def save_features(features):
-    safe_pickle_dump(features, FEATURES_FILE)
+def load_template(template_path="static/newsletter.html") -> str:
+    with open(template_path, 'r') as f:
+        return f.read()
 
-def load_features():
-    """ loads the features dict from disk """
-    with open(FEATURES_FILE, 'rb') as f:
-        features = pickle.load(f)
-    return features
+def generate_deterministic_id(item: Dict[str, Any], key_fields: List[str], prefix: str = "item") -> str:
+    """
+    Example:
+        item = {
+            "product_name": "Widget",
+            "color": "blue",
+            "timestamp": "2024-01-01"
+        }
+        id = generate_deterministic_id(
+            item,
+            key_fields=["product_name", "color"],
+            prefix="prod"
+        )
+        # Result: prod-a1b2c3d4...
+    """
+    key_fields.sort()
+    values = []
+    for field in key_fields:
+        if field not in item:
+            raise KeyError(f"Required field '{field}' not found in item")
+        value = item[field]
+        values.append(str(value))
 
-def get_tags():
-    if g.user is None:
-        return {}
-    if not hasattr(g, '_tags'):
-        with get_tags_db() as tags_db:
-            tags_dict = tags_db[g.user] if g.user in tags_db else {}
-        g._tags = tags_dict
-    return g._tags
-
-def get_papers():
-    if not hasattr(g, '_pdb'):
-        g._pdb = get_papers_db()
-    return g._pdb
-
-def get_metas():
-    if not hasattr(g, '_mdb'):
-        g._mdb = get_metas_db()
-    return g._mdb
+    combined_string = "||".join(values)
+    hash_object = hashlib.sha256(combined_string.encode())
+    hash_hex = hash_object.hexdigest()
+    short_hash = hash_hex[:12]
+    return f"{prefix}-{short_hash}"

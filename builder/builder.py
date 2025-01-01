@@ -1,38 +1,25 @@
 import configparser
 from services import *
-from services.crawler import *
-from dbhandler.models import *
+from typing import List
+from dbhandler import models
+from dbhandler import rss_feed
 from datetime import datetime
-from services.apps.arx_service import ArxivScanner
-
-config = configparser.ConfigParser()
-config.read('vault/vault.ini')
-
+from utils.utility import load_template
 
 class NewsletterBuilder:
-    def __init__(self, template_path: str, brand_name: str = "AiLert", sections=None):
+    def __init__(self, brand_name: str = "AiLert", template_path: str = "static/newsletter.html", sections=None):
         self.sections = sections if sections else ["all"]
-        self.template_path = template_path
         self.brand_name = brand_name
-        self.template = self._load_template()
-        self.reader = RSSReader()
-        self.arxiv_obj = ArxivScanner()
-        self.gh_obj = GitHubScanner()
-        self.hf_obj = HuggingFaceScanner()
-        self.ph_obj = ProductHuntScanner()
-        self.kg_obj = KaggleScanner()
-        self.events_obj = EventsCrawler()
-        self.substack_obj = SubstackCrawler()
-        self.linkedin_obj = LinkedinCrawler()
-        self.twitter_obj = TwitterCrawler()
+        self.template_path = template_path
+        self.template = load_template(self.template_path)
+        self.news_service = NewsService(rss_feed)
+        self.research_service = ResearchService()
+        self.github_service = GitHubScanner("")
+        self.competition_service = CompetitionService()
+        self.events_service = EventsService()
 
     def set_sections(self, sections):
-        if sections:
-            self.sections = sections
-
-    def _load_template(self) -> str:
-        with open(self.template_path, 'r') as f:
-            return f.read()
+        self.sections = sections
 
     def _format_highlights_section(self, highlights: List[dict]) -> str:
         if not highlights:
@@ -58,7 +45,7 @@ class NewsletterBuilder:
         </div>
         '''
 
-    def _format_news_item(self, item: NewsItem) -> str:
+    def _format_news_item(self, item: models.NewsItem) -> str:
         engagement_html = ""
         if item.engagement:
             engagement_html = f'''
@@ -76,7 +63,7 @@ class NewsletterBuilder:
         </div>
         '''
 
-    def _format_research_paper(self, paper: ResearchPaper) -> str:
+    def _format_research_paper(self, paper: models.ResearchPaper) -> str:
         return f'''
         <div class="news-item">
             <div class="news-title">{paper.title}</div>
@@ -90,7 +77,7 @@ class NewsletterBuilder:
         </div>
         '''
 
-    def _format_event(self, event: Event) -> str:
+    def _format_event(self, event: models.Event) -> str:
         return f'''
         <div class="news-item">
             <div class="news-title">{event.title}</div>
@@ -129,19 +116,45 @@ class NewsletterBuilder:
         return share_section
 
     def section_generator(self):
-        content = NewsletterContent(
-            highlights=self.news_service.get_highlights(),
-            breaking_news=self.news_service.get_breaking_news(),
-            research_papers=self.research_service.get_latest_papers(),
-            latest_launches=self.news_service.get_latest_launches(),
-            github_trending=self.github_service.get_trending_repos(),
-            upcoming_events=self.events_service.get_upcoming_events()
+        highlights = None
+        breaking_news = None
+        research_papers = None
+        latest_launch = None
+        github_trending = None
+        upcoming_events = None
+
+        if self.sections == ["all"]:
+            highlights = self.news_service.get_highlights(3)
+            breaking_news = self.news_service.get_news()
+            research_papers = self.research_service.get_latest_papers()
+            latest_launch = self.competition_service.get_latest_launch()
+            github_trending = self.github_service.get_trending_repos()
+            upcoming_events = self.events_service.get_upcoming_events()
+        else:
+            if "news" in self.sections:
+                highlights = self.news_service.get_highlights(10)
+                breaking_news = self.news_service.get_news()
+            if "papers" in self.sections:
+                research_papers = self.research_service.get_latest_papers()
+            if "latest" in self.sections:
+                latest_launch = self.competition_service.get_latest_launch()
+            if "trending" in self.sections:
+                github_trending = self.github_service.get_trending_repos()
+            if "upcoming" in self.sections:
+                upcoming_events = self.events_service.get_upcoming_events()
+
+        content = models.NewsletterContent(
+            highlights=highlights,
+            breaking_news=breaking_news,
+            research_papers=research_papers,
+            latest_launch=latest_launch,
+            github_trending=github_trending,
+            upcoming_events=upcoming_events
         )
         return content
 
-    def build(self, content: NewsletterContent) -> str:
+    def build(self, content: models.NewsletterContent) -> str:
         newsletter = self.template
-
         container_start = newsletter.find('<div class="container">')
         container_end = newsletter.rfind('</div>') + 6
         header_end = newsletter.find('<div class="section summary-section">')
@@ -157,7 +170,7 @@ class NewsletterBuilder:
             sections.append(self._format_highlights_section(content.highlights))
 
         section_configs = [
-            ("🌐 Breaking Industry News", content.breaking_news, self._format_news_item),
+            ("🌐 Latest Industry News", content.breaking_news, self._format_news_item),
             ("📚 Breakthrough Research", content.research_papers, self._format_research_paper),
             ("🚀 Latest AI Launches", content.latest_launches, self._format_news_item),
             ("💻 GitHub Trending This Week", content.github_trending, self._format_news_item),
@@ -185,14 +198,9 @@ class NewsletterBuilder:
                 </div>
                 '''
         sections.append(feedback_section)
-
         newsletter_content = header + '\n'.join(sections) + footer
-
-        # Update metadata
         newsletter_content = newsletter_content.replace('{{BRAND_NAME}}', self.brand_name)
         newsletter_content = newsletter_content.replace('{{CURRENT_YEAR}}', str(datetime.now().year))
-
-        # Rebuild the full HTML document
         doc_start = newsletter[:container_start]
         doc_end = newsletter[container_end:]
 

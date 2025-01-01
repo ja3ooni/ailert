@@ -1,12 +1,28 @@
+"""
+Database support functions.
+The idea is that none of the individual scripts deal directly with the file system.
+Any of the file system I/O and the associated settings are in this single file.
+"""
+
 import os
 import sqlite3, zlib, pickle, tempfile
 from sqlitedict import SqliteDict
 from contextlib import contextmanager
 
+
 DATA_DIR = 'data'
 
 @contextmanager
 def _tempfile(*args, **kws):
+    """ Context for temporary file.
+    Will find a free temporary filename upon entering
+    and will try to delete the file on leaving
+    Parameters
+    ----------
+    suffix : string
+        optional file suffix
+    """
+
     fd, name = tempfile.mkstemp(*args, **kws)
     os.close(fd)
     try:
@@ -23,6 +39,18 @@ def _tempfile(*args, **kws):
 
 @contextmanager
 def open_atomic(filepath, *args, **kwargs):
+    """ Open temporary file object that atomically moves to destination upon
+    exiting.
+    Allows reading and writing to and from the same filename.
+    Parameters
+    ----------
+    filepath : string
+        the file path to be opened
+    fsync : bool
+        whether to force write the file to disk
+    kwargs : mixed
+        Any valid keyword arguments for :code:`open`
+    """
     fsync = kwargs.pop('fsync', False)
 
     with _tempfile(dir=os.path.dirname(filepath)) as tmppath:
@@ -34,11 +62,19 @@ def open_atomic(filepath, *args, **kwargs):
         os.rename(tmppath, filepath)
 
 def safe_pickle_dump(obj, fname):
+    """
+    prevents a case where one process could be writing a pickle file
+    while another process is reading it, causing a crash. the solution
+    is to write the pickle file to a temporary file and then move it.
+    """
     with open_atomic(fname, 'wb') as f:
         pickle.dump(obj, f, -1) # -1 specifies highest binary protocol
 
+# -----------------------------------------------------------------------------
 
 class CompressedSqliteDict(SqliteDict):
+    """ overrides the encode/decode methods to use zlib, so we get compressed storage """
+
     def __init__(self, *args, **kwargs):
 
         def encode(obj):
@@ -49,7 +85,16 @@ class CompressedSqliteDict(SqliteDict):
 
         super().__init__(*args, **kwargs, encode=encode, decode=decode)
 
+# -----------------------------------------------------------------------------
+"""
+some docs to self:
+flag='c': default mode, open for read/write, and creating the db/table if necessary
+flag='r': open for read-only
+"""
+
+# stores info about papers, and also their lighter-weight metadata
 PAPERS_DB_FILE = os.path.join(DATA_DIR, 'papers.db')
+# stores account-relevant info, like which tags exist for which papers
 DICT_DB_FILE = os.path.join(DATA_DIR, 'dict.db')
 
 def get_papers_db(flag='r', autocommit=True):
@@ -77,7 +122,12 @@ def get_email_db(flag='r', autocommit=True):
     edb = SqliteDict(DICT_DB_FILE, tablename='email', flag=flag, autocommit=autocommit)
     return edb
 
+# -----------------------------------------------------------------------------
+"""
+our "feature store" is currently just a pickle file, may want to consider hdf5 in the future
+"""
 
+# stores tfidf features a bunch of other metadata
 FEATURES_FILE = os.path.join(DATA_DIR, 'features.p')
 
 def save_features(features):
