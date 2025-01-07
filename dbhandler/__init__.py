@@ -1,4 +1,4 @@
-from db import *
-from models import *
-from dynamo import Dynamo
-from vault.links import rss_feed, sites
+from dbhandler.db import *
+from dbhandler.models import *
+from dbhandler.dynamo import Dynamo
+from dbhandler.vault.links import rss_feed, sites

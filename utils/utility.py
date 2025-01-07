@@ -34,3 +34,10 @@ def generate_deterministic_id(item: Dict[str, Any], key_fields: List[str], prefi
     hash_hex = hash_object.hexdigest()
     short_hash = hash_hex[:12]
     return f"{prefix}-{short_hash}"
+
+def truncate_text(text: str, max_length: int = 200) -> str:
+    """Truncate text to specified length at the nearest word boundary."""
+    if len(text) <= max_length:
+        return text
+    truncated = text[:max_length].rsplit(' ', 1)[0]
+    return truncated.rstrip('.,!?:;')

@@ -1,10 +1,8 @@
-from events_crwaler import EventsCrawler
-from rss_crawler import *
-from blog_crawler import SubstackCrawler, MediumCrawler
-from social_media_crawler import LinkedinCrawler, TwitterCrawler
+from services.crawler.rss_crawler import *
+from services.crawler.blog_crawler import SubstackCrawler, MediumCrawler
+from services.crawler.social_media_crawler import LinkedinCrawler, TwitterCrawler
 
 __all__ = [
-    "EventsCrawler",
     "SubstackCrawler",
     "MediumCrawler",
     "LinkedinCrawler",

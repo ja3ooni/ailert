@@ -1,20 +1,26 @@
 import jwt
 import time
 import requests
+import configparser
+from dbhandler import Repo
 from bs4 import BeautifulSoup
 
-default_pem = ""
-default_clientId = ""
+config = configparser.ConfigParser()
+config.read('dbhandler/vault/secrets.ini')
+
+default_pem = config["GitHub"]["pem_path"]
+default_clientId = config["GitHub"]["client_id"]
 
 class GitHubScanner:
-    def __init__(self, site_url,  top_n=5, pem_path=default_pem, client_id=default_clientId):
+    def __init__(self, site_url, ftype, top_n=5, pem_path=default_pem, client_id=default_clientId):
         self.site_url = site_url
+        self.ftype = ftype
         self.top_n = top_n
         self.pem_path = pem_path
         self.client_id = client_id
         self.response = []
 
-    def __gh_authenticate(self):
+    def _gh_authenticate(self):
         with open(self.pem_path, 'rb') as pem_file:
             signing_key = pem_file.read()
 
@@ -27,7 +33,8 @@ class GitHubScanner:
         encoded_jwt = jwt.encode(payload, signing_key, algorithm='RS256')
         return encoded_jwt
 
-    def __extract_from_html(self, link):
+    def _extract_from_html(self, link):
+        repos = []
         try:
             response = requests.get(link)
             response.raise_for_status()
@@ -48,24 +55,34 @@ class GitHubScanner:
                                 repo.find_all('a', class_='Link--muted d-inline-block mr-3')
                 forks = fork_elements[1].text.strip().replace(',', '') if len(fork_elements) > 1 else "0"
 
-                self.response.append({
+                repos.append({
                     'name': name,
                     'description': description,
-                    'stars': int(stars) if stars.isdigit() else stars,
-                    'forks': int(forks) if forks.isdigit() else forks
+                    'stars': str(stars),
+                    'forks': str(forks)
                 })
 
-            return self.response
+            return repos[:self.top_n]
         except Exception as e:
             print(f"Error: {str(e)}")
 
-    def get_trending_repos(self):
-        pass
-
-    def daily_trending_repos(self):
-        repositories = self.__extract_from_html(self.site_url)
+    def _daily_trending_repos(self):
+        repositories = self._extract_from_html(self.site_url)
         return repositories
 
-    def weekly_trending_repos(self):
-        repositories = self.__extract_from_html(self.site_url)
+    def _weekly_trending_repos(self):
+        repositories = self._extract_from_html(self.site_url)
         return  repositories
+
+    async def get_trending_repos(self):
+        if self.ftype == "daily":
+            repositories = self._daily_trending_repos()
+        else:
+            repositories = self._weekly_trending_repos()
+        self.response.extend(Repo(
+            name = repo["name"],
+            link = "",
+            summary = repo["description"],
+            source = "GitHub",
+            engagement = repo["stars"]) for repo in repositories)
+        return self.response

@@ -1,25 +1,30 @@
+import asyncio
 from builder.builder import NewsletterBuilder
 
 
-def daily_task():
-    daily = NewsletterBuilder("static/newsletter.html")
+async def daily_task():
+    daily = NewsletterBuilder({
+        "gh_url": "https://github.com/trending/python?since=weekly&spoken_language_code=en",
+        "gh_ftype": "daily"})
     daily.set_sections(["news"])
-    content = daily.section_generator()
-    newsletter_html = daily.build(content)
+    content = await daily.section_generator()
+    newsletter_html = await daily.build(content)
 
     # Save the generated newsletter
-    with open("static/dail_newsletter.html", "w") as f:
+    with open("static/daily_newsletter.html", "w") as f:
         f.write(newsletter_html)
 
 
-def weekly_task():
-    weekly = NewsletterBuilder("static/newsletter.html")
+async def weekly_task():
+    weekly = NewsletterBuilder({
+        "gh_url": "https://github.com/trending/python?since=weekly&spoken_language_code=en",
+        "gh_ftype": "weekly"})
     weekly.set_sections(["all"])
-    content = weekly.section_generator()
-    newsletter_html = weekly.build(content)
+    content = await weekly.section_generator()
+    newsletter_html = await weekly.build(content)
 
     # Save the generated newsletter
-    with open("static/dail_newsletter.html", "w") as f:
+    with open("static/weekly_newsletter.html", "w") as f:
         f.write(newsletter_html)
 
 

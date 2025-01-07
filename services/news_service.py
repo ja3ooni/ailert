@@ -1,13 +1,21 @@
 import pytz
+import logging
 import feedparser
 import numpy as np
 import concurrent.futures
 from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import Dict, List
-from sklearn.svm import LinearSVC
 from dbhandler import NewsItem
+from email.utils import parsedate_to_datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 class NewsService:
     def __init__(self, rss_urls: List[str]):
@@ -28,14 +36,10 @@ class NewsService:
 
     def _parse_date(self, date_str: str) -> datetime:
         try:
-            parsed_date = feedparser._parse_date(date_str)
-            if parsed_date:
-                return datetime.fromtimestamp(
-                    datetime.mktime(parsed_date)
-                ).replace(tzinfo=pytz.UTC)
+            parsed_date = parsedate_to_datetime(date_str)
+            return parsed_date.replace(tzinfo=pytz.UTC)
         except:
-            pass
-        return datetime.min.replace(tzinfo=pytz.UTC)
+            return datetime.min.replace(tzinfo=pytz.UTC)
 
     def _fetch_feed(self, url: str) -> List[Dict]:
         try:
@@ -74,15 +78,18 @@ class NewsService:
     def _calculate_importance_scores(self, news_items: List[Dict]) -> List[float]:
         if not news_items:
             return []
-
-        texts = [item['full_text'] for item in news_items]
-        x = self.tfidf.fit_transform(texts)
-        svm = LinearSVC(dual=False)
-        y = np.ones(len(texts))
-        svm.fit(x, y)
-        feature_importance = np.abs(svm.coef_[0])
-        scores = x.multiply(feature_importance).sum(axis=1)
-        return scores.A1
+        try:
+            texts = [item['full_text'] for item in news_items]
+            x = self.tfidf.fit_transform(texts)
+            doc_lengths = x.sum(axis=1).A1
+            term_importance = np.sqrt(np.asarray(x.mean(axis=0)).ravel())
+            scores = doc_lengths * np.dot(x.toarray(), term_importance)
+            if len(scores) > 0:
+                scores = (scores - scores.min()) / (scores.max() - scores.min() + 1e-8)
+            return scores.tolist()
+        except Exception as e:
+            logger.error(f"Error calculating importance scores: {str(e)}")
+            raise RuntimeError(f"Failed to calculate importance scores: {str(e)}")
 
     def _calculate_read_time(self, text: str, words_per_minute: int = 200) -> int:
         words = len(text.strip().split())
@@ -91,8 +98,7 @@ class NewsService:
         seconds = int((total_minutes - minutes) * 60)
         return minutes
 
-
-    def get_highlights(self, max_items: int = 5) -> List[NewsItem]:
+    async def get_highlights(self, max_items: int = 5) -> List[NewsItem]:
         today = datetime.now(pytz.UTC)
         all_news = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -118,14 +124,17 @@ class NewsService:
         for item, score in zip(today_news, importance_scores):
             item['additional_info']['importance_score'] = float(score)
 
-        sorted_news = sorted(
-            today_news,
-            key=lambda x: (
-                x['additional_info']['importance_score'],
-                x['additional_info']['published_date']
-            ),
-            reverse=True
-        )
+        if len(today_news) > 1:
+            sorted_news = sorted(
+                today_news,
+                key=lambda x: (
+                    x['additional_info']['importance_score'],
+                    x['additional_info']['published_date']
+                ),
+                reverse=True
+            )
+        else:
+            sorted_news = today_news
 
         for item in sorted_news[:max_items]:
             read_time = self._calculate_read_time(item['description'])
@@ -141,5 +150,5 @@ class NewsService:
             self.summary.append({"title": item['title'], "read_time": read_time})
         return self.summary
 
-    def get_news(self):
+    async def get_news(self):
         return self.news

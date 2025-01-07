@@ -1,39 +1,167 @@
-# Newsletter Creator
+# AiLert 🔔
 
-<!--- this is just for reference
-- https://pypi.org/project/substack-api/
-- Weekly top papers
-- Best research paper
-- Award Winning papers              
-- Top research paper			    — api (arxiv, ieee, openreview)
-- Top Repo       				    — api (github)
-- Top product    				    — api (producthunt)
-- Top/Latest Model  			    — api (huggingface)
-- Top/Latest Dataset			    — api (huggingface)
-- Latest in AI/Kaggle/Research		— pip (kaggle)
-- Latest in Research        		— pip (kaggle)
-- Upcoming Events                   - api (conferencealerts.co.in/artificial-intelligence or aiml.events)
--->
+An open-source AI newsletter platform that aggregates and curates AI content from across the internet.
 
-This repo contains the code for AiLert weekly newsletter. The different services are executed by the scheduler 
-to scrap the content from internet for each of these section
-1. Top industry news 
-2. Top research papers (hf, arxiv, openreview)
-3. Top models, datasets, products (hf, ph)
-4. Latest competitions along with awards (kaggle)
-5. Top trending GitHub repo (gh)
-6. Upcoming AI events/conferences (https://conferencealerts.co.in/artificial-intelligence or https://aiml.events/)
+## Overview
+AiLert automatically aggregates content from 150+ sources including research papers, news sites, GitHub repositories, and events to create customizable AI newsletters. Built with Python and powered by AWS, it helps communities and teams stay updated with the latest in AI.
 
+## Features
+- 📚 Multi-source aggregation (150+ sources)
+- 🎯 Smart content categorization
+- 📊 Engagement tracking
+- ⚡ Async content processing
+- 📧 Customizable newsletter templates
+- 📅 Daily and weekly digest options
 
-Sources for news 
-  * Wired, MIT Technology Review, The Verge, TechCrunch, Fast Company, AI Weekly, Artificialintelligence-news, 
-  Ai Magazine, VentureBeat, AI News, KDnuggets, Synced, Towards Data Science, OpenAI, DeepMind, 
-  Google AI, and Stanford's Human-Centered AI Institute, Analytics Insight, Inside Bigdata, Dataversity, 
-  Datafloq, Dataconomy, Datanami, Data Science Central, Database Trends And Applications, Informs, 
-  Analytics Vidhya, Distill, IBM Developer, AI Trends, Machine Intelligence Research Institute, 
-  AI Playbook, Science Daily, Emerj, R-bloggers, Journal Of Artificial Intelligence Research, 
-  Jaxenter, Hunch, Analytics
+## Content Sources
+- Research Papers (arXiv)
+- Industry News (RSS feeds)
+- GitHub Trending Repositories
+- AI Competitions & Events
+- Product Launches
+- Technical Blogs
 
-  * Twitter and LinkedIn
-  Influential AI researchers, developers, and companies on platforms
+## Tech Stack
+- Python 3.8+
+- Flask
+- AWS DynamoDB
+- BeautifulSoup4
+- Feedparser
+- Schedule
+- Pydantic
+- uvicorn
 
+## Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/ailert.git
+cd ailert
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Set up AWS credentials:
+```bash
+export AWS_ACCESS_KEY_ID="your_access_key"
+export AWS_SECRET_ACCESS_KEY="your_secret_key"
+export AWS_REGION="your_region"
+```
+
+4. Run the application:
+```bash
+python main.py
+```
+
+## Project Structure
+```
+ailert/
+├── builder/            # Newsletter generation
+├── services/           # Content aggregation services
+├── static/            # Templates and assets
+├── scheduler.py       # Scheduling tasks
+├── main.py           # Flask application
+├── dynamo.py         # Database operations
+└── requirements.txt  # Dependencies
+```
+
+## Contributing
+We welcome contributions of all kinds! Here are some ways you can help:
+
+### Development
+- Add new content sources
+- Improve content categorization
+- Optimize performance
+- Add new features
+- Fix bugs
+- Write tests
+
+### Documentation
+- Improve technical docs
+- Write tutorials
+- Add code comments
+- Create examples
+
+### Design
+- Improve newsletter templates
+- Create visual assets
+- Enhance UI/UX
+
+### Content
+- Add new RSS feeds
+- Improve content filtering
+- Suggest new features
+
+## Getting Started with Contributing
+
+1. Fork the repository
+2. Create a new branch
+```bash
+git checkout -b feature/your-feature
+```
+3. Make your changes
+4. Write or update tests
+5. Submit a pull request
+
+### Development Setup
+1. Install development dependencies:
+```bash
+pip install -r requirements-dev.txt
+```
+
+2. Run tests:
+```bash
+python -m pytest
+```
+
+## API Documentation
+
+### Newsletter Builder
+```python
+from builder.builder import NewsletterBuilder
+
+# Create daily newsletter
+daily = NewsletterBuilder({
+    "gh_url": "github_url",
+    "gh_ftype": "daily"
+})
+daily.set_sections(["news"])
+content = await daily.section_generator()
+```
+
+### Content Services
+Each service handles different content types:
+- `NewsService`: Industry news
+- `ResearchService`: Research papers
+- `GitHubScanner`: Trending repositories
+- `ProductService`: New AI products
+- `CompetitionService`: AI competitions
+- `EventsService`: Upcoming events
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+- All our amazing contributors
+- The open-source community
+- RSS feed providers
+- Content creators
+
+## Contact
+- Create an issue for bug reports
+- Start a discussion for feature requests
+- Join our Discord community [link]
+
+## Roadmap
+- [ ] Add more content sources
+- [ ] Implement ML-based content ranking
+- [ ] Add personalization options
+- [ ] Create API endpoints
+- [ ] Add email delivery system
+- [ ] Improve template customization
+
+---
+Built with ❤️ for the AI community

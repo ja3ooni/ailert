@@ -1,8 +1,9 @@
-from news_service import NewsService
-from event_service import EventsService
-from research_service import ResearchService
+from services.news_service import NewsService
+from services.event_service import EventsService
+from services.research_service import ResearchService
 from services.apps.gh_service import GitHubScanner
-from competition_service import CompetitionService
+from services.competition_service import CompetitionService
+from services.product_service import ProductService
 
 
 __all__ = [
@@ -10,5 +11,6 @@ __all__ = [
     "GitHubScanner",
     "CompetitionService",
     "EventsService",
-    "ResearchService"
+    "ResearchService",
+    "ProductService"
 ]

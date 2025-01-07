@@ -79,10 +79,11 @@ class ProductHuntScanner:
             for product in products:
                 node = product["node"]
                 result.append({
-                    "name": node["name"],
-                    "tagline": node["tagline"],
-                    "url": node["url"],
-                    "votes": node["votesCount"]
+                    "title": node["name"],
+                    "summary": node["tagline"],
+                    "link": node["url"],
+                    "engagement": node["votesCount"],
+                    "source": "Product Hunt"
                 })
 
             return result
