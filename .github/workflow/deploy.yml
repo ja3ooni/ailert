@@ -10,6 +10,7 @@ env:
   ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
   EC2_HOST: ${{ secrets.EC2_HOST }}
   DOCKER_IMAGE_TAG: ${{ github.sha }}
+  S3_CONFIG_BUCKET: ${{ secrets.S3_CONFIG_BUCKET }}
 
 jobs:
   deploy:
@@ -25,6 +26,11 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download Vault Files from S3
+        run: |
+          mkdir -p db_handler/vault
+          aws s3 sync s3://${{ env.S3_CONFIG_BUCKET }}/vault/ db_handler/vault/
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -57,11 +63,17 @@ jobs:
           docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
           docker stop ailert-newsletter || true
           docker rm ailert-newsletter || true
+          
+          # Create vault directory if it doesn't exist
+          mkdir -p /data/newsletter/vault
+          
+          # Sync latest vault files from S3
+          aws s3 sync s3://${{ env.S3_CONFIG_BUCKET }}/vault/ /data/newsletter/vault/
+          
           docker run -d \
             --name ailert-newsletter \
             -p 5000:5000 \
-            -v /data/newsletter:/app/data \
-            -v /data/logs:/app/logs \
+            -v /data/newsletter/vault:/app/db_handler/vault \
             --restart unless-stopped \
             -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
             -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
