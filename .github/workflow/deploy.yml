@@ -8,7 +8,6 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
   EC2_HOST: ${{ secrets.EC2_HOST }}
   DOCKER_IMAGE_TAG: ${{ github.sha }}
   S3_CONFIG_BUCKET: ${{ secrets.S3_CONFIG_BUCKET }}
@@ -34,18 +33,6 @@ jobs:
           mkdir -p db_handler/vault
           aws s3 sync s3://${{ env.S3_CONFIG_BUCKET }}/vault/ db_handler/vault/
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and Push Docker Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$DOCKER_IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$DOCKER_IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$DOCKER_IMAGE_TAG" >> $GITHUB_OUTPUT
-
       - name: Create SSH Directory
         run: mkdir -p ~/.ssh
 
@@ -58,19 +45,30 @@ jobs:
         run: |
           ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Create Deploy Script
+      - name: Copy Application Code to EC2
         run: |
+          # Create a deployment package
+          tar -czf deploy.tar.gz .
+
+          # Copy files to EC2
+          scp -i ~/.ssh/ec2_key.pem deploy.tar.gz ec2-user@${{ env.EC2_HOST }}:~/
+          
+          # Create deploy script
           echo '#!/bin/bash
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
-          docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
-          docker stop ailert-newsletter || true
-          docker rm ailert-newsletter || true
+          cd ~
+          tar -xzf deploy.tar.gz
           
           # Create vault directory if it doesn't exist
           mkdir -p /data/newsletter/vault
           
           # Sync latest vault files from S3
           aws s3 sync s3://${{ env.S3_CONFIG_BUCKET }}/vault/ /data/newsletter/vault/
+          
+          # Build and run Docker container
+          docker build -t ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }} .
+          
+          docker stop ailert-newsletter || true
+          docker rm ailert-newsletter || true
           
           docker run -d \
             --name ailert-newsletter \
@@ -83,7 +81,10 @@ jobs:
             -e SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
             -e SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
             -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
+            ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }}
+            
+          # Cleanup
+          rm -rf deploy.tar.gz
           docker system prune -f' > deploy.sh
           chmod +x deploy.sh
 
