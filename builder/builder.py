@@ -1,13 +1,13 @@
 import re
 import logging
 import asyncio
-from typing import Dict
+from typing import Dict, Any
 from services import *
 from typing import List
-from dbhandler import rss_feed
+from db_handler import rss_feed
 from datetime import datetime
 from utils.utility import load_template, truncate_text
-from dbhandler import NewsItem, Competitions, ResearchPaper, Products, Repo, Event, NewsletterContent
+from db_handler import NewsItem, Competitions, ResearchPaper, Products, Repo, Event, NewsletterContent
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,10 +16,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class NewsletterBuilder:
-    def __init__(self, dict_vars: Dict, brand_name: str = "AiLert", template_path: str = "static/newsletter.html", sections=None):
+    def __init__(self, dict_vars: Dict, db_object: Any, brand_name: str = "AiLert", template_path: str = "static/newsletter.html", sections=None):
         self.sections = sections if sections else ["all"]
         self.brand_name = brand_name
         self.template_path = template_path
+        self.db_object = db_object
         self.template = load_template(self.template_path)
         self.news_service = NewsService(rss_feed)
         self.research_service = ResearchService()

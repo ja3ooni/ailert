@@ -3,7 +3,7 @@ import configparser
 import requests
 
 config = configparser.ConfigParser()
-config.read('dbhandler/vault/secrets.ini')
+config.read('db_handler/vault/secrets.ini')
 
 default_token = config["HuggingFace"]["token"]
 

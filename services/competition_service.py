@@ -1,4 +1,4 @@
-from dbhandler import Competitions
+from db_handler import Competitions
 from services.apps import KaggleScanner
 
 class CompetitionService:

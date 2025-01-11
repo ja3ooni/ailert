@@ -1,6 +1,6 @@
 import uuid
 import boto3
-from datetime import datetime
+from utils import utility
 from botocore.exceptions import ClientError
 from typing import Dict, List, Optional, Any
 
@@ -65,14 +65,13 @@ class Dynamo:
             print(f"Error deleting table: {e}")
             return False
 
-    def add_item(self, table_name: str, item: Dict[str, Any], auto_id: bool = True) -> str:
+    def add_item(self, table_name: str, partition_key: str, item: Dict[str, Any], auto_id: bool = True) -> str:
         try:
             table = self.dynamodb.Table(table_name)
             if auto_id and 'id' not in item:
-                item['id'] = str(uuid.uuid4())
+                item[partition_key] = str(uuid.uuid4())
 
-            item['created_at'] = datetime.now().isoformat()
-            item['updated_at'] = item['created_at']
+            item['created_at'] = utility.get_formatted_timestamp()
             table.put_item(Item=item)
             return item.get('id', '')
         except ClientError as e:
@@ -107,7 +106,7 @@ class Dynamo:
 
             update_expr_parts.append('#updated_at = :updated_at')
             expr_attr_names['#updated_at'] = 'updated_at'
-            expr_attr_values[':updated_at'] = datetime.now().isoformat()
+            expr_attr_values[':updated_at'] = utility.get_formatted_timestamp()
 
             update_expression = 'SET ' + ', '.join(update_expr_parts)
 

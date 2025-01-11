@@ -6,7 +6,7 @@ import concurrent.futures
 from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import Dict, List
-from dbhandler import NewsItem
+from db_handler import NewsItem
 from email.utils import parsedate_to_datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
 

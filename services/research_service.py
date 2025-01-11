@@ -1,17 +1,17 @@
 import numpy as np
 import configparser
 from sklearn import svm
-from dbhandler import sites
+from db_handler import sites
 from typing import List, Dict
 
-from dbhandler import ResearchPaper
+from db_handler import ResearchPaper
 from services.apps import ArxivScanner
 from services.apps import OpenReviewScanner
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 config = configparser.ConfigParser()
-config.read('dbhandler/vault/secrets.ini')
+config.read('db_handler/vault/secrets.ini')
 
 class ResearchService:
     def __init__(self, top_n:int = 3):
@@ -20,8 +20,8 @@ class ResearchService:
         self.open_review = OpenReviewScanner(top_n=top_n)
         self.top_papers = []
 
-    def _rerank(self, apapers: List[Dict], opapers: List[Dict]) -> List[Dict]:
-        all_papers = apapers
+    def _rerank(self, arxiv_papers: List[Dict], open_papers: List[Dict]) -> List[Dict]:
+        all_papers = arxiv_papers + open_papers
         texts = [f"{p['title']} {p['abstract']} {' '.join(p['authors'])}" for p in all_papers]
 
         vectorizer = TfidfVectorizer(

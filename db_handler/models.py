@@ -1,5 +1,15 @@
+from enum import Enum
 from pydantic import BaseModel
 from typing import List, Optional
+
+class TaskType(Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+
+class SchedulerState(Enum):
+    RUNNING = "running"
+    PAUSED = "paused"
+    STOPPED = "stopped"
 
 class NewsItem(BaseModel):
     title: str

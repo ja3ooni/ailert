@@ -4,6 +4,7 @@ from services.research_service import ResearchService
 from services.apps.gh_service import GitHubScanner
 from services.competition_service import CompetitionService
 from services.product_service import ProductService
+from email_service import EmailService
 
 
 __all__ = [
@@ -12,5 +13,6 @@ __all__ = [
     "CompetitionService",
     "EventsService",
     "ResearchService",
-    "ProductService"
+    "ProductService",
+    "EmailService"
 ]

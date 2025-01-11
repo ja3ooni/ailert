@@ -3,7 +3,7 @@ import os
 import subprocess
 
 config = configparser.ConfigParser()
-config.read('dbhandler/vault/secrets.ini')
+config.read('db_handler/vault/secrets.ini')
 
 default_cred = config["Kaggle"]["path"]
 

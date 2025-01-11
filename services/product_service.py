@@ -1,4 +1,4 @@
-from dbhandler import Products, sites
+from db_handler import Products, sites
 from services.apps import HuggingFaceScanner, ProductHuntScanner
 
 class ProductService:

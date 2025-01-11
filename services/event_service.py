@@ -3,7 +3,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 from typing import List, Dict
-from dbhandler import Event, sites
+from db_handler import Event, sites
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

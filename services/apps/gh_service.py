@@ -2,11 +2,11 @@ import jwt
 import time
 import requests
 import configparser
-from dbhandler import Repo
+from db_handler import Repo
 from bs4 import BeautifulSoup
 
 config = configparser.ConfigParser()
-config.read('dbhandler/vault/secrets.ini')
+config.read('db_handler/vault/secrets.ini')
 
 default_pem = config["GitHub"]["pem_path"]
 default_clientId = config["GitHub"]["client_id"]

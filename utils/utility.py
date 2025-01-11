@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 from typing import Any, Dict, List
 
 
@@ -41,3 +42,7 @@ def truncate_text(text: str, max_length: int = 200) -> str:
         return text
     truncated = text[:max_length].rsplit(' ', 1)[0]
     return truncated.rstrip('.,!?:;')
+
+def get_formatted_timestamp():
+    """Get current timestamp in YYYY-MM-DD format"""
+    return datetime.now().strftime("%Y-%m-%d")
