@@ -1,4 +1,8 @@
+import os
+import re
+import csv
 import hashlib
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -46,3 +50,41 @@ def truncate_text(text: str, max_length: int = 200) -> str:
 def get_formatted_timestamp():
     """Get current timestamp in YYYY-MM-DD format"""
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def is_valid_email(email):
+    """Validate email format"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+
+def save_to_csv(email):
+    csv_file = 'db_handler/vault/recipients.csv'
+    file_exists = os.path.exists(csv_file)
+
+    try:
+        with open(csv_file, 'a', newline='') as file:
+            writer = csv.writer(file)
+            if not file_exists:
+                writer.writerow(['email', 'subscribed_at'])
+            writer.writerow([email, get_formatted_timestamp()])
+        return True
+    except Exception as e:
+        logging.error(f"Error saving to CSV: {str(e)}")
+        return False
+
+
+def is_email_subscribed(email):
+    """Check if email already exists in CSV"""
+    csv_file = 'db_handler/vault/recipients.csv'
+    if not os.path.exists(csv_file):
+        return False
+
+    try:
+        with open(csv_file, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            return any(row[0] == email for row in reader)
+    except Exception as e:
+        logging.error(f"Error checking subscription: {str(e)}")
+        return False

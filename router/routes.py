@@ -1,12 +1,35 @@
+import os
+import csv
 from app.main import *
-from flask import Blueprint, jsonify, request
+from utils.auth_utility import token_required
 from db_handler import TaskType, SchedulerState
+from utils.utility import is_valid_email, is_email_subscribed, save_to_csv
+
+from flask_cors import CORS
+from flask_limiter import Limiter
+from flask import Blueprint, jsonify, request
+from flask_limiter.util import get_remote_address
 
 
 bp = Blueprint("ailert", __name__, url_prefix="/internal/v1")
 
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["10 per day", "2 per hour"]
+)
+
+CORS(bp, resources={
+    r"/api/*": {
+        "origins": ["https://ailert.tech"],
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
 
 @bp.route('/start-scheduler/<task_type>', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
 def start_scheduler(task_type):
     if task_type not in [t.value for t in TaskType]:
         return jsonify({
@@ -35,6 +58,8 @@ def start_scheduler(task_type):
 
 
 @bp.route('/manage-scheduler/<action>', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
 def manage_scheduler(action):
     if not scheduler_state["is_running"]:
         return jsonify({
@@ -86,6 +111,8 @@ def manage_scheduler(action):
 
 
 @bp.route('/scheduler-status', methods=['GET'])
+@limiter.limit("5 per hour")
+@token_required
 def get_scheduler_status():
     if not scheduler_state["is_running"]:
         state = SchedulerState.STOPPED.value
@@ -102,6 +129,8 @@ def get_scheduler_status():
 
 
 @bp.route('/generate-newsletter', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
 async def api_generate_newsletter():
     try:
         data = request.get_json()
@@ -149,6 +178,8 @@ async def api_generate_newsletter():
 
 
 @bp.route('/save-newsletter', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
 def api_save_newsletter():
     try:
         data = request.get_json()
@@ -196,6 +227,8 @@ def api_save_newsletter():
 
 
 @bp.route('/send-email', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
 async def api_send_email():
     try:
         data = request.get_json()
@@ -235,6 +268,8 @@ async def api_send_email():
 
 
 @bp.route('/generate-and-send', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
 async def api_generate_and_send():
     try:
         data = request.get_json()
@@ -281,3 +316,118 @@ async def api_generate_and_send():
             "message": f"Error in generate and send workflow: {str(e)}",
             "timestamp": utility.get_formatted_timestamp()
         }), 500
+
+
+@bp.route('/subscribe', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
+def subscribe():
+    try:
+        data = request.get_json()
+
+        if not data or 'email' not in data:
+            return jsonify({
+                "status": "error",
+                "message": "Email is required",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 400
+
+        email = data['email'].lower().strip()
+
+        if not is_valid_email(email):
+            return jsonify({
+                "status": "error",
+                "message": "Invalid email format",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 400
+
+        if is_email_subscribed(email):
+            return jsonify({
+                "status": "error",
+                "message": "Email already subscribed",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 400
+
+        if save_to_csv(email):
+            return jsonify({
+                "status": "success",
+                "message": "Successfully subscribed",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 201
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to save subscription",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 500
+
+    except Exception as e:
+        logging.error(f"Error in subscribe endpoint: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "timestamp": utility.get_formatted_timestamp()
+        }), 500
+
+
+@bp.route('/unsubscribe', methods=['POST'])
+@limiter.limit("5 per hour")
+@token_required
+def unsubscribe():
+    try:
+        data = request.get_json()
+
+        if not data or 'email' not in data:
+            return jsonify({
+                "status": "error",
+                "message": "Email is required",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 400
+
+        email = data['email'].lower().strip()
+        csv_file = 'db_handler/vault/subscribers.csv'
+
+        if not os.path.exists(csv_file):
+            return jsonify({
+                "status": "error",
+                "message": "Email not found",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 404
+
+        temp_rows = []
+        found = False
+
+        with open(csv_file, 'r') as file:
+            reader = csv.reader(file)
+            temp_rows.append(next(reader))  # Keep header
+            for row in reader:
+                if row[0] != email:
+                    temp_rows.append(row)
+                else:
+                    found = True
+
+        if not found:
+            return jsonify({
+                "status": "error",
+                "message": "Email not found",
+                "timestamp": utility.get_formatted_timestamp()
+            }), 404
+
+        with open(csv_file, 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(temp_rows)
+
+        return jsonify({
+            "status": "success",
+            "message": "Successfully unsubscribed",
+            "timestamp": utility.get_formatted_timestamp()
+        })
+
+    except Exception as e:
+        logging.error(f"Error in unsubscribe endpoint: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "Internal server error",
+            "timestamp": utility.get_formatted_timestamp()
+        }), 500
+
