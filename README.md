@@ -1,4 +1,4 @@
-# AiLert 🔔
+# AiLert ![logo.svg](static/logo.svg)
 
 An open-source AI newsletter platform that aggregates and curates AI content from across the internet.
 
@@ -60,12 +60,14 @@ python main.py
 ```
 ailert/
 ├── builder/            # Newsletter generation
+├── db_handler/         # Db operations manager
+├── app/                # Core functions of the application
+├── router/             # REST Api routes
 ├── services/           # Content aggregation services
-├── static/            # Templates and assets
-├── scheduler.py       # Scheduling tasks
-├── main.py           # Flask application
-├── dynamo.py         # Database operations
-└── requirements.txt  # Dependencies
+├── static/             # Templates and assets
+├── utils/              # Application common utilities
+├── main.py             # Flask application
+└── requirements.txt    # Dependencies
 ```
 
 ## Contributing
