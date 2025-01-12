@@ -1,9 +1,10 @@
 from flask import Flask
-from router.routes import bp
+from router.routes import bp, limiter
 import os
 
 app = Flask(__name__)
 
+limiter.init_app(app)
 app.register_blueprint(bp)
 
 

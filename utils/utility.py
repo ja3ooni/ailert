@@ -1,6 +1,11 @@
+import os
+import re
+import csv
 import hashlib
+import logging
+from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 def load_template(template_path="static/newsletter.html") -> str:
@@ -46,3 +51,105 @@ def truncate_text(text: str, max_length: int = 200) -> str:
 def get_formatted_timestamp():
     """Get current timestamp in YYYY-MM-DD format"""
     return datetime.now().strftime("%Y-%m-%d")
+
+
+def is_valid_email(email):
+    """Validate email format"""
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+
+def save_to_csv(email):
+    csv_file = 'db_handler/vault/recipients.csv'
+    file_exists = os.path.exists(csv_file)
+
+    try:
+        with open(csv_file, 'a', newline='') as file:
+            writer = csv.writer(file)
+            if not file_exists:
+                writer.writerow(['email', 'subscribed_at'])
+            writer.writerow([email, get_formatted_timestamp()])
+        return True
+    except Exception as e:
+        logging.error(f"Error saving to CSV: {str(e)}")
+        return False
+
+
+def is_email_subscribed(email):
+    """Check if email already exists in CSV"""
+    csv_file = 'db_handler/vault/recipients.csv'
+    if not os.path.exists(csv_file):
+        return False
+
+    try:
+        with open(csv_file, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip header
+            return any(row[0] == email for row in reader)
+    except Exception as e:
+        logging.error(f"Error checking subscription: {str(e)}")
+        return False
+
+
+def inline_css(html_content: str, css_path: Optional[str] = None) -> str:
+    """Replace CSS link tags with the actual CSS content in the HTML string."""
+    css_link_pattern = r'<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"[^>]*>'
+
+    def replace_css_link(match):
+        css_file = match.group(1)
+
+        # If css_path is provided, use it, otherwise look in current directory
+        if css_path:
+            css_file_path = Path(css_path) / Path(css_file).name
+        else:
+            css_file_path = Path(css_file)
+
+        try:
+            with open(css_file_path, 'r', encoding='utf-8') as f:
+                css_content = f.read()
+                return f'<style>\n{css_content}\n</style>'
+        except FileNotFoundError:
+            print(f"Warning: CSS file not found: {css_file_path}")
+            return match.group(0)  # Keep original link tag if file not found
+        except Exception as e:
+            print(f"Error reading CSS file: {e}")
+            return match.group(0)
+
+    # Replace all CSS link tags with style tags
+    return re.sub(css_link_pattern, replace_css_link, html_content)
+
+
+def inline_svg_images(html_content: str, svg_path: Optional[str] = None) -> str:
+    """Replace SVG image tags with the actual SVG content in the HTML string."""
+    img_pattern = r'<img[^>]+src="([^"]+\.svg)"[^>]*>'
+
+    def replace_img_tag(match):
+        # Get the full img tag and the src value
+        img_tag = match.group(0)
+        svg_file = match.group(1)
+
+        # Extract the class and alt attributes if they exist
+        class_match = re.search(r'class="([^"]+)"', img_tag)
+        alt_match = re.search(r'alt="([^"]+)"', img_tag)
+
+        class_attr = f' class="{class_match.group(1)}"' if class_match else ''
+        alt_attr = f' aria-label="{alt_match.group(1)}"' if alt_match else ''
+
+        # If svg_path is provided, use it, otherwise look in current directory
+        if svg_path:
+            svg_file_path = Path(svg_path) / Path(svg_file).name
+        else:
+            svg_file_path = Path(svg_file)
+
+        try:
+            with open(svg_file_path, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+                svg_content = svg_content.replace('<svg ', f'<svg{class_attr}{alt_attr} ')
+                return svg_content
+        except FileNotFoundError:
+            print(f"Warning: SVG file not found: {svg_file_path}")
+            return img_tag  # Keep original img tag if file not found
+        except Exception as e:
+            print(f"Error reading SVG file: {e}")
+            return img_tag
+    return re.sub(img_pattern, replace_img_tag, html_content)

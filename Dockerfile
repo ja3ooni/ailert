@@ -28,16 +28,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Create necessary directories and set permissions
-RUN mkdir -p /app/static && \
-    mkdir -p /app/db_handler/vault && \
+# Create vault directory
+RUN mkdir -p /app/db_handler/vault && \
     chown -R appuser:appuser /app
 
 # Switch to non-root user
 USER appuser
 
-# Create volume for persistent data
-VOLUME ["/app/db_handler/vault", "/app/static"]
+# Create volume for vault
+VOLUME ["/app/db_handler/vault"]
 
 # Expose port
 EXPOSE 5000
