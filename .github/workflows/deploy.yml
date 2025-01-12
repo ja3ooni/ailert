@@ -41,12 +41,12 @@ jobs:
           
           # Debug information
           echo "Testing SSH connection..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ec2-user@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
           
           cat >>~/.ssh/config <<END
           Host ${{ secrets.EC2_HOST }}
             HostName ${{ secrets.EC2_HOST }}
-            User ${{ secrets.EC2_USER }}
+            User ec2-user
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
             UserKnownHostsFile ~/.ssh/known_hosts
@@ -56,11 +56,16 @@ jobs:
 
       - name: Copy Application Code to EC2
         run: |
-          # Create a deployment package
-          tar -czf deploy.tar.gz .
+          # Create deployment package excluding git and cache files
+          tar --exclude='./.git' \
+              --exclude='./.github' \
+              --exclude='./node_modules' \
+              --exclude='./__pycache__' \
+              --exclude='*.pyc' \
+              -czf deploy.tar.gz .
 
-          # Copy files to EC2
-          scp -i ~/.ssh/ec2_key.pem deploy.tar.gz ${{ secrets.EC2_USER }}@${{ env.EC2_HOST }}:~/
+          echo "Copying files to EC2..."
+          scp deploy.tar.gz ec2-user@${{ secrets.EC2_HOST }}:~/
           
           # Create deploy script
           echo '#!/bin/bash
@@ -101,16 +106,62 @@ jobs:
         run: |
           # Debug SSH connection
           echo "Testing connection before deployment..."
-          if ! ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
+          if ! ssh ec2-user@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
             echo "Failed to connect to EC2 instance"
             exit 1
           fi
           
-          echo "Copying deployment script..."
-          scp deploy.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deploy.sh
+          echo "Creating deploy script..."
+          cat > deploy.sh << 'EOL'
+          #!/bin/bash
+          set -e
+
+          echo "Cleaning up old deployment..."
+          rm -rf application/
+          mkdir -p application
+
+          echo "Extracting new code..."
+          tar -xzf deploy.tar.gz -C application/
+
+          echo "Setting up environment..."
+          cd application/
+
+          # Create vault directory if it doesn't exist
+          mkdir -p /data/newsletter/vault
           
-          echo "Running deployment script..."
-          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "chmod +x ./deploy.sh && ./deploy.sh"
+          # Sync latest vault files from S3
+          aws s3 sync s3://${{ env.S3_CONFIG_BUCKET }}/vault/ /data/newsletter/vault/
+          
+          echo "Building Docker image..."
+          docker build -t ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }} .
+          
+          echo "Stopping old container..."
+          docker stop ailert-newsletter || true
+          docker rm ailert-newsletter || true
+          
+          echo "Starting new container..."
+          docker run -d \
+            --name ailert-newsletter \
+            -p 5000:5000 \
+            -v /data/newsletter/vault:/app/db_handler/vault \
+            --restart unless-stopped \
+            -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+            -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+            -e AWS_REGION="${{ secrets.AWS_REGION }}" \
+            -e SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}" \
+            -e SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}" \
+            -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }}
+            
+          echo "Cleaning up..."
+          cd ..
+          docker system prune -f
+          rm -f deploy.tar.gz
+          EOL
+
+          chmod +x deploy.sh
+          scp deploy.sh ec2-user@${{ secrets.EC2_HOST }}:~/deploy.sh
+          ssh ec2-user@${{ secrets.EC2_HOST }} "./deploy.sh"
 
       - name: Cleanup
         if: always()
