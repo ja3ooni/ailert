@@ -31,6 +31,29 @@ AiLert automatically aggregates content from 150+ sources including research pap
 - Pydantic
 - uvicorn
 
+## 📫 How to Subscribe
+
+1. Visit https://ailert.tech
+2. Navigate to the newsletter section
+3. Enter your email address
+4. Confirm your subscription
+
+## ✨ What Our Readers Say
+
+`"AIlert's newsletter helps me stay on top of AI developments without getting overwhelmed" - Tech Lead at Fortune 500`
+
+
+`"The perfect blend of technical depth and practical insights" - AI Researcher`
+
+## 🔒 Your Privacy Matters
+
+- No spam, ever
+- Unsubscribe anytime
+- Your data is never shared or sold
+
+## 📅 Publication Schedule
+Receive our carefully curated insights every week, delivered straight to your inbox.
+
 ## Installation
 
 1. Clone the repository:
