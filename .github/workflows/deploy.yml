@@ -33,27 +33,18 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-          # Create deployment archive
-          tar --exclude='.git' --exclude='.github' --exclude='node_modules' \
-              --exclude='__pycache__' --exclude='*.pyc' -czf deploy.tar.gz .
-
-          # Copy files to EC2
-          scp deploy.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/
-
-          # Create and execute deploy script
+          # Execute deployment on EC2
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash -c '
-            # Cleanup and setup
-            rm -rf app && mkdir app
-            tar -xzf deploy.tar.gz -C app
-            cd app
-
             # Setup vault directory
             sudo mkdir -p /data/newsletter/vault
             sudo chown -R $USER:$USER /data/newsletter
+
+            # Sync vault files from S3
             aws s3 sync s3://${{ secrets.S3_CONFIG_BUCKET }}/vault/ /data/newsletter/vault/
 
-            # Deploy container
-            docker build -t ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }} .
+            # Build and deploy container
+            docker build -t ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }} https://github.com/${{ github.repository }}.git#${{ github.ref }}
+            
             docker stop ailert-newsletter || true
             docker rm ailert-newsletter || true
             
@@ -70,9 +61,7 @@ jobs:
               -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
               ailert-newsletter:${{ env.DOCKER_IMAGE_TAG }}
 
-            # Cleanup
-            cd ..
-            rm -rf deploy.tar.gz app
+            # Cleanup old images
             docker system prune -f --volumes
           '
 
