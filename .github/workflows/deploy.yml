@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 
 env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
   EC2_HOST: ${{ secrets.EC2_HOST }}
   DOCKER_IMAGE_TAG: ${{ github.sha }}
   S3_CONFIG_BUCKET: ${{ secrets.S3_CONFIG_BUCKET }}
@@ -33,20 +32,27 @@ jobs:
           mkdir -p db_handler/vault
           aws s3 sync s3://${{ env.S3_CONFIG_BUCKET }}/vault/ db_handler/vault/
 
-      - name: Setup SSH
+      - name: Setup SSH and Known Hosts
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H -t rsa,ecdsa,ed25519 ${{ secrets.EC2_HOST }} 2>/dev/null > ~/.ssh/known_hosts || true
+          
+          # Debug information
+          echo "Testing SSH connection..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ec2-user@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
+          
           cat >>~/.ssh/config <<END
-          Host *
+          Host ${{ secrets.EC2_HOST }}
+            HostName ${{ secrets.EC2_HOST }}
+            User ec2-user
+            IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
+            UserKnownHostsFile ~/.ssh/known_hosts
           END
-
-      - name: Add EC2 to Known Hosts
-        run: |
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
+          
+          chmod 600 ~/.ssh/config
 
       - name: Copy Application Code to EC2
         run: |
@@ -93,8 +99,18 @@ jobs:
 
       - name: Deploy to EC2
         run: |
-          scp -i ~/.ssh/id_rsa deploy.sh ec2-user@${{ secrets.EC2_HOST }}:~/deploy.sh
-          ssh -i ~/.ssh/id_rsa ec2-user@${{ secrets.EC2_HOST }} "./deploy.sh"
+          # Debug SSH connection
+          echo "Testing connection before deployment..."
+          if ! ssh ec2-user@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
+            echo "Failed to connect to EC2 instance"
+            exit 1
+          fi
+          
+          echo "Copying deployment script..."
+          scp deploy.sh ec2-user@${{ secrets.EC2_HOST }}:~/deploy.sh
+          
+          echo "Running deployment script..."
+          ssh ec2-user@${{ secrets.EC2_HOST }} "chmod +x ./deploy.sh && ./deploy.sh"
 
       - name: Cleanup
         if: always()
