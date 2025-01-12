@@ -40,11 +40,11 @@ class EmailService:
             html_content=self.body_text
         )
 
-        if self.template_id:
-            mail.template_id = self.template_id
-        else:
-            content = Content("text/html", self.body_text)
-            mail.content = [content]
+        # if self.template_id:
+        #     mail.template_id = self.template_id
+        # else:
+        #     content = Content("text/html", self.body_text)
+        #     mail.content = [content]
 
         return mail
 

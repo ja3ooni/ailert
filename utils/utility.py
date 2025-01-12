@@ -107,7 +107,6 @@ def inline_css(html_content: str, css_path: Optional[str] = None) -> str:
         try:
             with open(css_file_path, 'r', encoding='utf-8') as f:
                 css_content = f.read()
-                print(css_content)
                 return f'<style>\n{css_content}\n</style>'
         except FileNotFoundError:
             print(f"Warning: CSS file not found: {css_file_path}")
@@ -118,3 +117,39 @@ def inline_css(html_content: str, css_path: Optional[str] = None) -> str:
 
     # Replace all CSS link tags with style tags
     return re.sub(css_link_pattern, replace_css_link, html_content)
+
+
+def inline_svg_images(html_content: str, svg_path: Optional[str] = None) -> str:
+    """Replace SVG image tags with the actual SVG content in the HTML string."""
+    img_pattern = r'<img[^>]+src="([^"]+\.svg)"[^>]*>'
+
+    def replace_img_tag(match):
+        # Get the full img tag and the src value
+        img_tag = match.group(0)
+        svg_file = match.group(1)
+
+        # Extract the class and alt attributes if they exist
+        class_match = re.search(r'class="([^"]+)"', img_tag)
+        alt_match = re.search(r'alt="([^"]+)"', img_tag)
+
+        class_attr = f' class="{class_match.group(1)}"' if class_match else ''
+        alt_attr = f' aria-label="{alt_match.group(1)}"' if alt_match else ''
+
+        # If svg_path is provided, use it, otherwise look in current directory
+        if svg_path:
+            svg_file_path = Path(svg_path) / Path(svg_file).name
+        else:
+            svg_file_path = Path(svg_file)
+
+        try:
+            with open(svg_file_path, 'r', encoding='utf-8') as f:
+                svg_content = f.read()
+                svg_content = svg_content.replace('<svg ', f'<svg{class_attr}{alt_attr} ')
+                return svg_content
+        except FileNotFoundError:
+            print(f"Warning: SVG file not found: {svg_file_path}")
+            return img_tag  # Keep original img tag if file not found
+        except Exception as e:
+            print(f"Error reading SVG file: {e}")
+            return img_tag
+    return re.sub(img_pattern, replace_img_tag, html_content)
