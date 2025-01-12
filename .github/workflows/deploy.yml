@@ -41,12 +41,12 @@ jobs:
           
           # Debug information
           echo "Testing SSH connection..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ec2-user@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
           
           cat >>~/.ssh/config <<END
           Host ${{ secrets.EC2_HOST }}
             HostName ${{ secrets.EC2_HOST }}
-            User ec2-user
+            User ${{ secrets.EC2_USER }}
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
             UserKnownHostsFile ~/.ssh/known_hosts
@@ -65,7 +65,7 @@ jobs:
               -czf deploy.tar.gz .
 
           echo "Copying files to EC2..."
-          scp deploy.tar.gz ec2-user@${{ secrets.EC2_HOST }}:~/
+          scp deploy.tar.gz ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/
           
           # Create deploy script
           echo '#!/bin/bash
@@ -106,7 +106,7 @@ jobs:
         run: |
           # Debug SSH connection
           echo "Testing connection before deployment..."
-          if ! ssh ec2-user@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
+          if ! ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
             echo "Failed to connect to EC2 instance"
             exit 1
           fi
@@ -160,8 +160,8 @@ jobs:
           EOL
 
           chmod +x deploy.sh
-          scp deploy.sh ec2-user@${{ secrets.EC2_HOST }}:~/deploy.sh
-          ssh ec2-user@${{ secrets.EC2_HOST }} "./deploy.sh"
+          scp deploy.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deploy.sh
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "./deploy.sh"
 
       - name: Cleanup
         if: always()
