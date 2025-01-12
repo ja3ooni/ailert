@@ -3,8 +3,9 @@ import re
 import csv
 import hashlib
 import logging
+from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 def load_template(template_path="static/newsletter.html") -> str:
@@ -88,3 +89,32 @@ def is_email_subscribed(email):
     except Exception as e:
         logging.error(f"Error checking subscription: {str(e)}")
         return False
+
+
+def inline_css(html_content: str, css_path: Optional[str] = None) -> str:
+    """Replace CSS link tags with the actual CSS content in the HTML string."""
+    css_link_pattern = r'<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"[^>]*>'
+
+    def replace_css_link(match):
+        css_file = match.group(1)
+
+        # If css_path is provided, use it, otherwise look in current directory
+        if css_path:
+            css_file_path = Path(css_path) / Path(css_file).name
+        else:
+            css_file_path = Path(css_file)
+
+        try:
+            with open(css_file_path, 'r', encoding='utf-8') as f:
+                css_content = f.read()
+                print(css_content)
+                return f'<style>\n{css_content}\n</style>'
+        except FileNotFoundError:
+            print(f"Warning: CSS file not found: {css_file_path}")
+            return match.group(0)  # Keep original link tag if file not found
+        except Exception as e:
+            print(f"Error reading CSS file: {e}")
+            return match.group(0)
+
+    # Replace all CSS link tags with style tags
+    return re.sub(css_link_pattern, replace_css_link, html_content)
