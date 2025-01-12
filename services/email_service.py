@@ -2,7 +2,7 @@ import logging
 import configparser
 from typing import List, Optional
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
+from sendgrid.helpers.mail import Mail
 
 
 config = configparser.ConfigParser()
@@ -30,20 +30,21 @@ class EmailService:
 
     def _create_mail_object(self, recipient: str) -> Mail:
         """Create a Mail object for a single recipient"""
-        from_email = Email(self.sender)
-        to_email = To(recipient)
+        from_email = self.sender
+        to_email = recipient
 
         mail = Mail(
             from_email=from_email,
             to_emails=to_email,
-            subject=self.subject
+            subject=self.subject,
+            html_content =self.body_text
         )
 
-        if self.template_id:
-            mail.template_id = self.template_id
-        else:
-            content = Content("text/plain", self.body_text)
-            mail.content = [content]
+        # if self.template_id:
+        #     mail.template_id = self.template_id
+        # else:
+        #     content = Content("text/plain", self.body_text)
+        #     mail.content = [content]
 
         return mail
 

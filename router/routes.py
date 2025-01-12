@@ -319,8 +319,6 @@ async def api_generate_and_send():
 
 
 @bp.route('/subscribe', methods=['POST'])
-@limiter.limit("5 per hour")
-@token_required
 def subscribe():
     try:
         data = request.get_json()
@@ -371,8 +369,6 @@ def subscribe():
 
 
 @bp.route('/unsubscribe', methods=['POST'])
-@limiter.limit("5 per hour")
-@token_required
 def unsubscribe():
     try:
         data = request.get_json()
