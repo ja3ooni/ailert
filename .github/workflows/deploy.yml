@@ -41,12 +41,12 @@ jobs:
           
           # Debug information
           echo "Testing SSH connection..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ec2-user@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo SSH connection successful'
           
           cat >>~/.ssh/config <<END
           Host ${{ secrets.EC2_HOST }}
             HostName ${{ secrets.EC2_HOST }}
-            User ec2-user
+            User ${{ secrets.EC2_USER }}
             IdentityFile ~/.ssh/id_rsa
             StrictHostKeyChecking no
             UserKnownHostsFile ~/.ssh/known_hosts
@@ -60,7 +60,7 @@ jobs:
           tar -czf deploy.tar.gz .
 
           # Copy files to EC2
-          scp -i ~/.ssh/ec2_key.pem deploy.tar.gz ec2-user@${{ env.EC2_HOST }}:~/
+          scp -i ~/.ssh/ec2_key.pem deploy.tar.gz ${{ secrets.EC2_USER }}@${{ env.EC2_HOST }}:~/
           
           # Create deploy script
           echo '#!/bin/bash
@@ -101,16 +101,16 @@ jobs:
         run: |
           # Debug SSH connection
           echo "Testing connection before deployment..."
-          if ! ssh ec2-user@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
+          if ! ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'echo "Connection test successful"'; then
             echo "Failed to connect to EC2 instance"
             exit 1
           fi
           
           echo "Copying deployment script..."
-          scp deploy.sh ec2-user@${{ secrets.EC2_HOST }}:~/deploy.sh
+          scp deploy.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/deploy.sh
           
           echo "Running deployment script..."
-          ssh ec2-user@${{ secrets.EC2_HOST }} "chmod +x ./deploy.sh && ./deploy.sh"
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "chmod +x ./deploy.sh && ./deploy.sh"
 
       - name: Cleanup
         if: always()
