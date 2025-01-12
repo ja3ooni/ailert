@@ -5,10 +5,9 @@ import configparser
 import pandas as pd
 from utils import utility
 from typing import Optional
-from db_handler import TaskType
 from services import EmailService
 from threading import Thread, Event
-from db_handler import sites, Dynamo
+from db_handler import sites, Dynamo, TaskType
 from builder.builder import NewsletterBuilder
 
 stop_event = Event()
@@ -96,7 +95,7 @@ def save_to_db(content, content_type):
     return item
 
 
-async def send_email(content, template_id, recipients=subscribers):
+async def send_email(content=None, template_id=None, recipients=subscribers):
     email_service = EmailService(
         recipients=recipients,
         body_text = content,

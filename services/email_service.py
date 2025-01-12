@@ -2,7 +2,7 @@ import logging
 import configparser
 from typing import List, Optional
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+from sendgrid.helpers.mail import Mail, Content
 
 
 config = configparser.ConfigParser()
@@ -37,14 +37,14 @@ class EmailService:
             from_email=from_email,
             to_emails=to_email,
             subject=self.subject,
-            html_content =self.body_text
+            html_content=self.body_text
         )
 
-        # if self.template_id:
-        #     mail.template_id = self.template_id
-        # else:
-        #     content = Content("text/plain", self.body_text)
-        #     mail.content = [content]
+        if self.template_id:
+            mail.template_id = self.template_id
+        else:
+            content = Content("text/html", self.body_text)
+            mail.content = [content]
 
         return mail
 
