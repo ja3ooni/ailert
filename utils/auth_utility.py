@@ -2,10 +2,27 @@ import jwt
 import configparser
 from functools import wraps
 from flask import request, jsonify
+from datetime import datetime, timedelta
 
 config = configparser.ConfigParser()
 config.read('db_handler/vault/secrets.ini')
 JWT_SECRET_KEY = config["JWT"]["token"]
+
+
+def create_token(user_id):
+    payload = {
+        'exp': datetime.now() + timedelta(days=1),
+        'iat': datetime.now(),
+        'sub': user_id
+    }
+
+    token = jwt.encode(
+        payload,
+        JWT_SECRET_KEY,
+        algorithm='HS256'
+    )
+    return token
+
 
 def token_required(f):
     @wraps(f)

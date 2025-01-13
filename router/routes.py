@@ -1,8 +1,8 @@
 import os
 import csv
 from app.main import *
-from utils.auth_utility import token_required
 from db_handler import TaskType, SchedulerState
+from utils.auth_utility import create_token, token_required
 from utils.utility import is_valid_email, is_email_subscribed, save_to_csv
 
 from flask_cors import CORS
@@ -25,6 +25,19 @@ CORS(bp, resources={
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
+
+config = configparser.ConfigParser()
+config.read('db_handler/vault/secrets.ini')
+user_id = config["JWT"]["user_id"]
+
+
+@bp.route('/login', methods=['POST'])
+def login():
+    token = create_token(user_id)
+    return jsonify({
+        "status": "success",
+        "token": token
+    })
 
 
 @bp.route('/start-scheduler/<task_type>', methods=['POST'])
