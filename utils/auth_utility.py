@@ -1,3 +1,5 @@
+import logging
+
 import jwt
 import configparser
 from functools import wraps
@@ -12,7 +14,6 @@ JWT_SECRET_KEY = config["JWT"]["token"]
 def create_token(user_id):
     payload = {
         'exp': datetime.now() + timedelta(days=1),
-        'iat': datetime.now(),
         'sub': user_id
     }
 
@@ -42,13 +43,14 @@ def token_required(f):
         try:
             # Decode token
             data = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-            current_user = data['user']
-        except:
+            current_user = data['sub']
+        except Exception as e:
+            logging.info("Token error" + str(e))
             return jsonify({
                 'message': 'Token is invalid',
                 'status': 'error'
             }), 401
 
-        return f(current_user, *args, **kwargs)
+        return f(*args, **kwargs)
 
     return decorated
