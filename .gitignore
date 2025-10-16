@@ -1,4 +1,4 @@
 /test.py
 /static/generated_newsletter.html
 /db_handler/vault/
-/sync-vault.sh
+/sync-vault*.sh
