@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Newsletter Application</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .endpoint { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .method { color: #007bff; font-weight: bold; }
+        .url { font-family: monospace; background: #e9ecef; padding: 2px 5px; }
+        .status { padding: 5px 10px; border-radius: 3px; color: white; }
+        .healthy { background: #28a745; }
+        .unhealthy { background: #dc3545; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 8px; }
+        .checkbox-group, .radio-group { display: flex; flex-wrap: wrap; gap: 15px; }
+        .checkbox-item, .radio-item { display: flex; align-items: center; }
+        .checkbox-item input, .radio-item input { margin-right: 5px; transform: scale(1.2); }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #newsletter-result { margin-top: 15px; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Newsletter Application</h1>
+        
+        <div id="status">
+            <h2>System Status</h2>
+            <div id="health-status">Loading...</div>
+        </div>
+        
+        <h2>Available Endpoints</h2>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <span class="url">/</span><br>
+            Application information and endpoint list
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <span class="url">/health</span><br>
+            Simple health check
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <span class="url">/internal/v1/health</span><br>
+            Detailed system health check with metrics
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">POST</span> <span class="url">/internal/v1/login</span><br>
+            Get JWT authentication token
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">POST</span> <span class="url">/internal/v1/subscribe</span><br>
+            Subscribe email to newsletter<br>
+            Body: <code>{"email": "user@example.com"}</code>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">POST</span> <span class="url">/internal/v1/generate-newsletter</span><br>
+            Generate newsletter (requires auth)<br>
+            Body: <code>{"sections": ["news"], "task_type": "daily"}</code>
+        </div>
+        
+        <div class="endpoint">
+            <span class="method">GET</span> <span class="url">/internal/v1/scheduler-status</span><br>
+            Check scheduler status (requires auth)
+        </div>
+        
+        <h2>Generate Newsletter</h2>
+        <div class="endpoint">
+            <h3>Create Newsletter</h3>
+            <form id="newsletter-form">
+                <div class="form-group">
+                    <label>Newsletter Type:</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="daily" name="task_type" value="daily" checked>
+                            <label for="daily">Daily Newsletter</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="weekly" name="task_type" value="weekly">
+                            <label for="weekly">Weekly Newsletter</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Custom Topics (optional):</label>
+                    <textarea id="topics" name="topics" placeholder="Enter specific topics you want to focus on, separated by commas (e.g., machine learning, artificial intelligence, computer vision)" style="width: 100%; height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+                    <small style="color: #666;">Leave empty to use default content sources</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Sections to Include:</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="news" name="sections" value="news" checked>
+                            <label for="news">News</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="research" name="sections" value="research">
+                            <label for="research">Research Papers</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="github" name="sections" value="github">
+                            <label for="github">GitHub Trending</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="competitions" name="sections" value="competitions">
+                            <label for="competitions">Competitions</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="products" name="sections" value="products">
+                            <label for="products">Products</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="events" name="sections" value="events">
+                            <label for="events">Events</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="all" name="sections" value="all">
+                            <label for="all">All Sections</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" id="generate-btn" onclick="generateNewsletter()">Generate Newsletter</button>
+            </form>
+            <div id="newsletter-result"></div>
+        </div>
+        
+        <h2>Quick Test</h2>
+        <button onclick="testHealth()">Test Health</button>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="test-results"></div>
+        
+        <h2>Documentation</h2>
+        <p>See <code>SETUP.md</code> for detailed setup instructions and API usage examples.</p>
+    </div>
+    
+    <script>
+        async function loadHealth() {
+            try {
+                const response = await fetch('/internal/v1/health');
+                const health = await response.json();
+                const statusDiv = document.getElementById('health-status');
+                const statusClass = health.status === 'healthy' ? 'healthy' : 'unhealthy';
+                statusDiv.innerHTML = '<span class="status ' + statusClass + '">' + health.status.toUpperCase() + '</span>';
+            } catch (error) {
+                document.getElementById('health-status').innerHTML = '<span class="status unhealthy">ERROR</span>';
+            }
+        }
+        
+        async function testHealth() {
+            const response = await fetch('/health');
+            const result = await response.json();
+            document.getElementById('test-results').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+        }
+        
+        async function testLogin() {
+            const response = await fetch('/internal/v1/login', { method: 'POST' });
+            const result = await response.json();
+            document.getElementById('test-results').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+        }
+        
+        // Handle "All Sections" checkbox
+        function handleAllSections() {
+            const allCheckbox = document.getElementById('all');
+            const otherCheckboxes = document.querySelectorAll('input[name="sections"]:not(#all)');
+            
+            if (allCheckbox.checked) {
+                otherCheckboxes.forEach(cb => {
+                    cb.checked = false;
+                    cb.disabled = true;
+                });
+            } else {
+                otherCheckboxes.forEach(cb => {
+                    cb.disabled = false;
+                });
+            }
+        }
+        
+        function handleOtherSections() {
+            const allCheckbox = document.getElementById('all');
+            if (allCheckbox.checked) {
+                allCheckbox.checked = false;
+                const otherCheckboxes = document.querySelectorAll('input[name="sections"]:not(#all)');
+                otherCheckboxes.forEach(cb => {
+                    cb.disabled = false;
+                });
+            }
+        }
+        
+        async function generateNewsletter() {
+            const form = document.getElementById('newsletter-form');
+            const generateBtn = document.getElementById('generate-btn');
+            
+            // Get task type
+            const taskType = document.querySelector('input[name="task_type"]:checked').value;
+            
+            // Get selected sections
+            const sections = [];
+            const checkboxes = form.querySelectorAll('input[name="sections"]:checked');
+            checkboxes.forEach(cb => sections.push(cb.value));
+            
+            // Get custom topics
+            const topicsText = document.getElementById('topics').value.trim();
+            const topics = topicsText ? topicsText.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            if (sections.length === 0) {
+                alert('Please select at least one section');
+                return;
+            }
+            
+            // Disable button and show loading
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            
+            const resultDiv = document.getElementById('newsletter-result');
+            resultDiv.innerHTML = '<p>Generating newsletter... This may take a few minutes.</p>';
+            resultDiv.className = '';
+            
+            try {
+                // First get auth token
+                const loginResponse = await fetch('/internal/v1/login', { method: 'POST' });
+                const loginResult = await loginResponse.json();
+                
+                if (loginResult.status !== 'success') {
+                    throw new Error('Failed to get auth token');
+                }
+                
+                const token = loginResult.token;
+                
+                // Generate newsletter
+                const response = await fetch('/internal/v1/generate-newsletter', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        sections: sections,
+                        task_type: taskType,
+                        topics: topics,
+                        format: 'both'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    resultDiv.className = 'success';
+                    let topicsDisplay = topics.length > 0 ? '<p><strong>Topics:</strong> ' + topics.join(', ') + '</p>' : '';
+                    resultDiv.innerHTML = '<h4>Newsletter Generated Successfully!</h4>' +
+                        '<p><strong>Type:</strong> ' + taskType + '</p>' +
+                        '<p><strong>Sections:</strong> ' + sections.join(', ') + '</p>' +
+                        topicsDisplay +
+                        '<details>' +
+                        '<summary>View HTML Content (Click to expand)</summary>' +
+                        '<textarea readonly style="width: 100%; height: 300px; margin-top: 10px;">' + result.content + '</textarea>' +
+                        '</details>' +
+                        (result.markdown ? '<details>' +
+                        '<summary>View Markdown Content (Click to expand)</summary>' +
+                        '<textarea readonly style="width: 100%; height: 300px; margin-top: 10px; font-family: monospace;">' + result.markdown + '</textarea>' +
+                        '</details>' : '') +
+                        '<br><button onclick="sendNewsletter(\'' + encodeURIComponent(result.content) + '\', \'' + taskType + '\')">' +
+                        'Send to Subscribers</button>';
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = '<p>Error: ' + result.message + '</p>';
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = '<p>Error: ' + error.message + '</p>';
+            } finally {
+                // Re-enable button
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Newsletter';
+            }
+        }
+        
+        async function sendNewsletter(encodedContent, taskType) {
+            if (!confirm('Send newsletter to all subscribers?')) return;
+            
+            try {
+                const content = decodeURIComponent(encodedContent);
+                
+                // Get auth token
+                const loginResponse = await fetch('/internal/v1/login', { method: 'POST' });
+                const loginResult = await loginResponse.json();
+                const token = loginResult.token;
+                
+                // Send email
+                const response = await fetch('/internal/v1/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        content: content
+                    })
+                });
+                
+                const result = await response.json();
+                alert('Email sent! Status: ' + result.status + '\nSuccessful: ' + (result.successful || 0) + '\nFailed: ' + (result.failed || 0));
+                
+            } catch (error) {
+                alert('Error sending email: ' + error.message);
+            }
+        }
+        
+        // Setup event listeners when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadHealth();
+            
+            // Add event listeners for checkboxes
+            document.getElementById('all').addEventListener('change', handleAllSections);
+            
+            const otherCheckboxes = document.querySelectorAll('input[name="sections"]:not(#all)');
+            otherCheckboxes.forEach(cb => {
+                cb.addEventListener('change', handleOtherSections);
+            });
+        });
+    </script>
+</body>
+</html>

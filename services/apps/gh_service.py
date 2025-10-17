@@ -8,8 +8,13 @@ from bs4 import BeautifulSoup
 config = configparser.ConfigParser()
 config.read('db_handler/vault/secrets.ini')
 
-default_pem = config["GitHub"]["pem_path"]
-default_clientId = config["GitHub"]["client_id"]
+# Handle missing GitHub config gracefully
+try:
+    default_pem = config["GitHub"]["pem_path"]
+    default_clientId = config["GitHub"]["client_id"]
+except KeyError:
+    default_pem = "path/to/github/private/key.pem"
+    default_clientId = "your_github_app_id"
 
 class GitHubScanner:
     def __init__(self, site_url, ftype, top_n=5, pem_path=default_pem, client_id=default_clientId):

@@ -5,7 +5,11 @@ import subprocess
 config = configparser.ConfigParser()
 config.read('db_handler/vault/secrets.ini')
 
-default_cred = config["Kaggle"]["path"]
+# Handle missing Kaggle config gracefully
+try:
+    default_cred = config["Kaggle"]["path"]
+except KeyError:
+    default_cred = "~/.kaggle"
 
 class KaggleScanner:
     def __init__(self, base_url: str = "", top_n=5, kaggle_cred_path=default_cred):
@@ -16,7 +20,9 @@ class KaggleScanner:
 
     def _get_top_n_kaggle_competitions(self):
         try:
-            os.environ["KAGGLE_CONFIG_DIR"] = os.path.expanduser(self.kaggle_cred_path)
+            # Set the directory containing kaggle.json
+            config_dir = os.path.dirname(os.path.abspath(self.kaggle_cred_path))
+            os.environ["KAGGLE_CONFIG_DIR"] = config_dir
             result = subprocess.run(
                 ["kaggle", "competitions", "list", "--sort-by", "prize"],
                 stdout=subprocess.PIPE,

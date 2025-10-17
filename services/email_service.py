@@ -7,7 +7,12 @@ from sendgrid.helpers.mail import Mail, Content
 
 config = configparser.ConfigParser()
 config.read('db_handler/vault/secrets.ini')
-api_key = config["Sendgrid"]["api_key"]
+
+# Handle missing Sendgrid config gracefully
+try:
+    api_key = config["Sendgrid"]["api_key"]
+except KeyError:
+    api_key = "your_sendgrid_api_key_here"
 
 class EmailService:
     def __init__(self, recipients: Optional[List[str]] = None,

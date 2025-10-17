@@ -5,7 +5,11 @@ import requests
 config = configparser.ConfigParser()
 config.read('db_handler/vault/secrets.ini')
 
-default_token = config["HuggingFace"]["token"]
+# Handle missing HuggingFace config gracefully
+try:
+    default_token = config["HuggingFace"]["token"]
+except KeyError:
+    default_token = "your_huggingface_token_here"
 
 class HuggingFaceScanner:
     def __init__(self, base_url, top_n=5, auth_token=default_token):

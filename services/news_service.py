@@ -3,12 +3,15 @@ import logging
 import feedparser
 import numpy as np
 import concurrent.futures
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
 from datetime import datetime
 from typing import Dict, List
 from db_handler import NewsItem
 from email.utils import parsedate_to_datetime
 from sklearn.feature_extraction.text import TfidfVectorizer
+import warnings
+
+warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
 logging.basicConfig(
     level=logging.INFO,

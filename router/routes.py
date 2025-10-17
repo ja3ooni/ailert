@@ -1,5 +1,6 @@
 import os
 import csv
+import asyncio
 from app.main import *
 from db_handler import TaskType, SchedulerState
 from utils.auth_utility import create_token, token_required
@@ -144,7 +145,7 @@ def get_scheduler_status():
 @bp.route('/generate-newsletter', methods=['POST'])
 @limiter.limit("5 per hour")
 @token_required
-async def api_generate_newsletter():
+def api_generate_newsletter():
     try:
         data = request.get_json()
 
@@ -157,6 +158,8 @@ async def api_generate_newsletter():
 
         sections = data.get('sections')
         task_type = data.get('task_type')
+        topics = data.get('topics', [])
+        format_type = data.get('format', 'html')
 
         if not sections or not task_type:
             return jsonify({
@@ -172,14 +175,20 @@ async def api_generate_newsletter():
                 "timestamp": utility.get_formatted_timestamp()
             }), 400
 
-        newsletter_html = await generate_newsletter(sections, task_type)
-
-        return jsonify({
+        newsletter_html = asyncio.run(generate_newsletter(sections, task_type, topics))
+        
+        response_data = {
             "status": "success",
             "message": "Newsletter generated successfully",
             "content": newsletter_html,
             "timestamp": utility.get_formatted_timestamp()
-        })
+        }
+        
+        if format_type in ['markdown', 'both']:
+            newsletter_md = asyncio.run(generate_newsletter_markdown(sections, task_type, topics))
+            response_data["markdown"] = newsletter_md
+
+        return jsonify(response_data)
 
     except Exception as e:
         logging.error(f"Error generating newsletter: {str(e)}")
@@ -242,7 +251,7 @@ def api_save_newsletter():
 @bp.route('/send-email', methods=['POST'])
 @limiter.limit("5 per hour")
 @token_required
-async def api_send_email():
+def api_send_email():
     try:
         data = request.get_json()
 
@@ -264,7 +273,7 @@ async def api_send_email():
                 "timestamp": utility.get_formatted_timestamp()
             }), 400
 
-        result = await send_email(recipients, content, template_id)
+        result = asyncio.run(send_email(content, template_id, recipients))
 
         return jsonify({
             **result,  # Include all fields from the EmailService response
@@ -283,7 +292,7 @@ async def api_send_email():
 @bp.route('/generate-and-send', methods=['POST'])
 @limiter.limit("5 per hour")
 @token_required
-async def api_generate_and_send():
+def api_generate_and_send():
     try:
         data = request.get_json()
 
@@ -296,6 +305,7 @@ async def api_generate_and_send():
 
         sections = data.get('sections')
         task_type = data.get('task_type')
+        topics = data.get('topics', [])
         recipients = data.get('recipients', [])
 
         if not sections or not task_type:
@@ -306,13 +316,13 @@ async def api_generate_and_send():
             }), 400
 
         # Generate newsletter
-        newsletter_html = await generate_newsletter(sections, task_type)
+        newsletter_html = asyncio.run(generate_newsletter(sections, task_type, topics))
 
         # Save to database
         saved_item = save_to_db(newsletter_html, task_type)
 
         # Send email
-        email_result = await send_email(recipients, saved_item["content"], saved_item["newsletterId"])
+        email_result = asyncio.run(send_email(saved_item["content"], None, recipients))
 
         return jsonify({
             "status": "success",
@@ -380,6 +390,20 @@ def subscribe():
             "timestamp": utility.get_formatted_timestamp()
         }), 500
 
+
+@bp.route('/health', methods=['GET'])
+def api_health():
+    """API Health check endpoint"""
+    try:
+        from app.main import health_check
+        health = health_check()
+        return jsonify(health)
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Health check failed: {str(e)}",
+            "timestamp": utility.get_formatted_timestamp()
+        }), 500
 
 @bp.route('/unsubscribe', methods=['POST'])
 def unsubscribe():

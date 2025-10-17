@@ -2,3 +2,6 @@
 /static/generated_newsletter.html
 /db_handler/vault/
 /sync-vault.sh
+.env
+.venv/
+.github/
